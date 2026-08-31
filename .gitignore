@@ -19,3 +19,6 @@ npm-debug.log*
 # 프록시 로컬 설정과 로그
 proxy/proxy.env
 proxy/*.log
+
+# wrangler 로컬 캐시 (Cloudflare 계정 정보 포함)
+.wrangler/

@@ -15,6 +15,9 @@ import {
 const BASE = import.meta.env.BASE_URL;
 /* 자동판정은 채점 루브릭용 기능이다. 어르신용 실사용판에서는 버튼을 감춘다. */
 const JUDGE_ON = import.meta.env.VITE_JUDGE !== "off";
+/* 실사용판(도메인 배포)에서는 답변을 마커스님 노트북이 만든다.
+   방문자에게 Ollama를 설치하라고 하면 틀린 안내가 되므로 문구를 가른다. */
+const HOSTED = import.meta.env.VITE_HOSTED === "1";
 
 /* 브라우저 음성 입력(Web Speech API)은 표준 타입 정의에 없어 필요한 만큼만 선언한다. */
 type SpeechRecognitionLike = {
@@ -485,8 +488,10 @@ export default function App() {
             <h2 className="intro-title">실행 구조</h2>
             <p className="intro-body">
               자료는 미리 임베딩해 정적 파일로 두고, 검색(코사인 + BM25 + RRF)은 브라우저에서
-              계산합니다. 답변 생성과 질문 임베딩은 사용자 컴퓨터의 로컬 Ollama가 맡습니다. 서버가
-              대신 호출하지 않으므로 Ollama가 켜져 있어야 합니다.
+              계산합니다.{" "}
+              {HOSTED
+                ? "답변을 만드는 일은 운영자 컴퓨터가 맡습니다. 그래서 이 화면은 아무것도 설치하지 않고 바로 쓰실 수 있습니다. 다만 운영자 컴퓨터가 꺼져 있는 동안에는 답변을 드릴 수 없습니다."
+                : "답변 생성과 질문 임베딩은 사용자 컴퓨터의 로컬 Ollama가 맡습니다. 서버가 대신 호출하지 않으므로 Ollama가 켜져 있어야 합니다."}
             </p>
           </article>
         </section>
@@ -502,11 +507,43 @@ export default function App() {
             <span
               className={`conn-chip ${!status.checked ? "is-checking" : ready ? "is-ok" : "is-off"}`}
             >
-              {!status.checked ? "연결 확인 중" : ready ? "로컬 모델 연결됨" : "로컬 모델 미연결"}
+              {!status.checked
+                ? "연결 확인 중"
+                : ready
+                  ? HOSTED ? "안내 준비됨" : "로컬 모델 연결됨"
+                  : HOSTED ? "지금은 연결할 수 없습니다" : "로컬 모델 미연결"}
             </span>
           </div>
 
-          {status.checked && !ready && (
+          {/* 실사용판 — 방문자가 할 수 있는 일이 없으므로 설치 안내 대신 짧게 알린다. */}
+          {status.checked && !ready && HOSTED && (
+            <div className="conn-banner" role="status">
+              <div className="conn-banner-head">
+                <Icon name="warning" className="conn-banner-icon" />
+                <div>
+                  <strong className="conn-banner-title">지금은 답변을 드릴 수 없습니다.</strong>
+                  <p className="conn-banner-desc">
+                    안내를 만드는 컴퓨터가 잠시 꺼져 있습니다. 조금 뒤에 다시 열어 주세요.
+                    아래 <b>예시 보기</b>는 지금도 보실 수 있습니다.
+                  </p>
+                </div>
+              </div>
+              <button
+                className="btn-secondary"
+                onClick={async () => {
+                  setRechecking(true);
+                  await refreshStatus();
+                  setRechecking(false);
+                }}
+                disabled={rechecking}
+              >
+                {rechecking ? "확인 중..." : "다시 확인"}
+              </button>
+            </div>
+          )}
+
+          {/* 제출용 — 방문자 컴퓨터의 Ollama를 직접 부르는 구성이라 설치 안내가 필요하다. */}
+          {status.checked && !ready && !HOSTED && (
             <div className="conn-banner" role="status">
               <div className="conn-banner-head">
                 <Icon name="warning" className="conn-banner-icon" />
@@ -633,7 +670,9 @@ export default function App() {
               ))}
             </div>
             <div className="demo-row">
-              <span className="demo-label">Ollama 설치 없이 결과만 보시려면</span>
+              <span className="demo-label">
+                {HOSTED ? "미리 만들어 둔 예시를 보시려면" : "Ollama 설치 없이 결과만 보시려면"}
+              </span>
               <button className="btn-ghost" onClick={() => showDemo(0)} disabled={busy}>
                 예시: 안내한 답변
               </button>
