@@ -467,7 +467,7 @@ export default function App() {
           </div>
         </header>
 
-        <section className="intro-grid" aria-label="서비스 안내">
+        <section className={`intro-grid ${HOSTED ? "is-two" : ""}`} aria-label="서비스 안내">
           <article className="intro-card">
             <h2 className="intro-title">서비스 소개</h2>
             <p className="intro-body">
@@ -484,16 +484,18 @@ export default function App() {
               출처 칩을 누르면 근거가 된 원문 조각을 그대로 확인할 수 있습니다.
             </p>
           </article>
-          <article className="intro-card">
-            <h2 className="intro-title">실행 구조</h2>
-            <p className="intro-body">
-              자료는 미리 임베딩해 정적 파일로 두고, 검색(코사인 + BM25 + RRF)은 브라우저에서
-              계산합니다.{" "}
-              {HOSTED
-                ? "답변을 만드는 일은 운영자 컴퓨터가 맡습니다. 그래서 이 화면은 아무것도 설치하지 않고 바로 쓰실 수 있습니다. 다만 운영자 컴퓨터가 꺼져 있는 동안에는 답변을 드릴 수 없습니다."
-                : "답변 생성과 질문 임베딩은 사용자 컴퓨터의 로컬 Ollama가 맡습니다. 서버가 대신 호출하지 않으므로 Ollama가 켜져 있어야 합니다."}
-            </p>
-          </article>
+          {/* 실행 구조는 채점자에게 설명하려고 둔 카드다.
+              어르신 화면에는 검색 알고리즘 이름이 필요 없으므로 실사용판에서는 감춘다. */}
+          {!HOSTED && (
+            <article className="intro-card">
+              <h2 className="intro-title">실행 구조</h2>
+              <p className="intro-body">
+                자료는 미리 임베딩해 정적 파일로 두고, 검색(코사인 + BM25 + RRF)은 브라우저에서
+                계산합니다. 답변 생성과 질문 임베딩은 사용자 컴퓨터의 로컬 Ollama가 맡습니다. 서버가
+                대신 호출하지 않으므로 Ollama가 켜져 있어야 합니다.
+              </p>
+            </article>
+          )}
         </section>
 
         <section className="chat-panel" id="chat">

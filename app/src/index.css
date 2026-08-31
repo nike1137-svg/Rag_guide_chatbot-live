@@ -158,6 +158,11 @@ button {
   margin-bottom: var(--sp-6);
 }
 
+/* 실사용판은 소개 카드가 둘이라 3열에 두면 오른쪽이 빈다. */
+.intro-grid.is-two {
+  grid-template-columns: repeat(2, 1fr);
+}
+
 .intro-card {
   background: var(--surface);
   border: 1px solid var(--line);
