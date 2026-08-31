@@ -503,7 +503,8 @@ export default function App() {
             <div className="panel-head-text">
               <h2 className="panel-title">이음이 안내 챗봇</h2>
               <p className="panel-sub">
-                자료 {status.docs}건 · 답변 {CHAT_MODEL} · 임베딩 {EMBED_MODEL}
+                자료 {status.docs}건
+                {!HOSTED && ` · 답변 ${CHAT_MODEL} · 임베딩 ${EMBED_MODEL}`}
               </p>
             </div>
             <span
@@ -671,17 +672,22 @@ export default function App() {
                 </button>
               ))}
             </div>
-            <div className="demo-row">
-              <span className="demo-label">
-                {HOSTED ? "미리 만들어 둔 예시를 보시려면" : "Ollama 설치 없이 결과만 보시려면"}
-              </span>
-              <button className="btn-ghost" onClick={() => showDemo(0)} disabled={busy}>
-                예시: 안내한 답변
-              </button>
-              <button className="btn-ghost" onClick={() => showDemo(1)} disabled={busy}>
-                예시: 범위 밖 질문 거절
-              </button>
-            </div>
+            {/* 실사용판에서는 연결이 안 될 때만 보여 준다.
+                평소에는 그냥 물어보시면 되고, 답변을 만드는 쪽이 꺼졌을 때만 대안이 된다.
+                hidden 속성은 .demo-row 의 display:flex 에 덮이므로 렌더 자체를 건다. */}
+            {!(HOSTED && ready) && (
+              <div className="demo-row">
+                <span className="demo-label">
+                  {HOSTED ? "미리 만들어 둔 예시를 보시려면" : "Ollama 설치 없이 결과만 보시려면"}
+                </span>
+                <button className="btn-ghost" onClick={() => showDemo(0)} disabled={busy}>
+                  예시: 안내한 답변
+                </button>
+                <button className="btn-ghost" onClick={() => showDemo(1)} disabled={busy}>
+                  예시: 범위 밖 질문 거절
+                </button>
+              </div>
+            )}
           </div>
 
           {!!answer && (
@@ -857,8 +863,8 @@ export default function App() {
         </section>
 
         <footer className="site-footer">
-          이음이 — 어르신 디지털 안내 챗봇. 자료: 공개 문서 {status.docs}건 · 답변 {CHAT_MODEL}{" "}
-          ({HOSTED ? "Ollama, 운영자 컴퓨터" : "Ollama, 로컬"}) · 임베딩 {EMBED_MODEL}
+          이음이 — 어르신 디지털 안내 챗봇. 자료: 공개 문서 {status.docs}건
+          {!HOSTED && ` · 답변 ${CHAT_MODEL} (Ollama, 로컬) · 임베딩 ${EMBED_MODEL}`}
         </footer>
       </div>
 
