@@ -46,6 +46,63 @@ curl 검증만 하면 전부 통과하는데 브라우저에서만 죽는다. �
 "IP당 30회" 가 "전체 30회" 로 바뀐다. `CF-Connecting-IP` 헤더를 쓰되,
 **루프백에서 들어온 연결일 때만** 그 헤더를 믿는다. 아니면 헤더를 위조해 우회할 수 있다.
 
+## 설정 파일
+
+`proxy.env.example` 을 `proxy.env` 로 복사해서 값을 채운다. `proxy.env` 는 커밋하지 않는다.
+서버가 시작할 때 이 파일을 읽어 **비어 있는 값만** 채운다. 환경변수가 이미 있으면 그쪽이 이긴다.
+
+배포 후에는 `ALLOWED_ORIGINS` 에 실사용판 주소를 추가하고 프록시를 다시 띄운다.
+
+## 상시 실행 (작업 스케줄러)
+
+`start-proxy.ps1` 이 프록시를 창 없이 띄운다. 작업 스케줄러가 로그온할 때 이 파일을 부른다.
+등록은 **관리자 PowerShell**에서 한 번만 하면 된다.
+
+```powershell
+$tr = 'powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "C:\Users\nike1\Rag_guide_chatbot\proxy\start-proxy.ps1"'
+schtasks /create /tn "eoumi-proxy" /tr $tr /sc onlogon /rl LIMITED /f
+```
+
+| 명령 | 하는 일 |
+|---|---|
+| `schtasks /run /tn "eoumi-proxy"` | 지금 바로 띄운다 |
+| `schtasks /end /tn "eoumi-proxy"` | 내린다 |
+| `schtasks /query /tn "eoumi-proxy"` | 상태를 본다 |
+| `schtasks /delete /tn "eoumi-proxy" /f` | 등록을 지운다 |
+
+창이 없으므로 화면에는 아무것도 안 보인다. 살아 있는지는 이렇게 확인한다.
+
+```powershell
+curl.exe -s http://localhost:8787/api/health
+```
+
+문제가 생기면 `proxy/proxy.log` 와 `proxy/proxy.error.log` 를 본다.
+
+> PowerShell의 `*>>` 리디렉션은 로그를 UTF-16으로 써서 한글을 깨뜨린다.
+> 그래서 실행기는 `Start-Process` 의 리디렉션을 쓴다. 이쪽은 바이트를 그대로 넣는다.
+> 대신 덮어쓰기라서, 시작 시각은 `server.mjs` 가 직접 찍는다.
+
+## 노트북 전원 설정
+
+노트북이 잠들면 서비스가 끊긴다. 교류 전원일 때만 아래를 0으로 둔다. **배터리는 건드리지 않는다.**
+
+| 항목 | 값 |
+|---|---|
+| 절전(대기) | 0 = 안 함 |
+| 화면 끄기 | 0 = 안 함 |
+| 최대 절전 | 0 = 안 함 |
+| 덮개 닫기 | 아무것도 안 함 |
+
+윈도우 11은 Modern Standby라 `powercfg /change` 만으로는 덮개 닫기를 못 막는다.
+덮개 설정은 기본적으로 숨겨져 있어 먼저 드러내야 한다.
+
+```powershell
+$LID = '5ca83367-6e45-459f-a27b-476b1d01c936'
+powercfg -attributes SUB_BUTTONS $LID -ATTRIB_HIDE
+powercfg /setacvalueindex SCHEME_CURRENT SUB_BUTTONS $LID 0
+powercfg /setactive SCHEME_CURRENT
+```
+
 ## 검증
 
 ```powershell

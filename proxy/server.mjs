@@ -16,6 +16,27 @@
 // 외부 패키지를 쓰지 않는다. Node 내장 모듈만 쓴다.
 
 import http from "node:http";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+// 작업 스케줄러로 띄우면 환경변수를 넘기기가 번거롭다.
+// 그래서 server.mjs 옆의 proxy.env 파일을 읽어 비어 있는 값만 채운다.
+// 이미 환경변수가 설정돼 있으면 그쪽이 이긴다.
+const here = path.dirname(fileURLToPath(import.meta.url));
+const envFile = path.join(here, "proxy.env");
+if (fs.existsSync(envFile)) {
+  for (const line of fs.readFileSync(envFile, "utf8").split(/\r?\n/)) {
+    const s = line.trim();
+    if (!s || s.startsWith("#")) continue;
+    const i = s.indexOf("=");
+    if (i < 0) continue;
+    const k = s.slice(0, i).trim();
+    const v = s.slice(i + 1).trim();
+    if (k && !process.env[k]) process.env[k] = v;
+  }
+  console.log("[설정] " + envFile);
+}
 
 const PORT = Number(process.env.PROXY_PORT) || 8787;
 const OLLAMA = process.env.OLLAMA_URL || "http://localhost:11434";
@@ -228,7 +249,8 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, "127.0.0.1", () => {
-  console.log("[이음이 프록시] 대기 중  http://127.0.0.1:" + PORT);
+  const stamp = new Date().toLocaleString("ko-KR");
+  console.log("[이음이 프록시] " + stamp + " 시작  http://127.0.0.1:" + PORT);
   console.log("  Ollama       " + OLLAMA);
   console.log("  허용 오리진   " + ALLOWED_ORIGINS.join("  "));
   console.log("  레이트리밋    IP당 분당 " + RATE_PER_MIN + "회");

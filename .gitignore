@@ -15,3 +15,7 @@ npm-debug.log*
 .env
 .env.*
 !.env.example
+
+# 프록시 로컬 설정과 로그
+proxy/proxy.env
+proxy/*.log
