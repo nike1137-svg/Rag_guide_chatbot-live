@@ -82,6 +82,54 @@ curl.exe -s http://localhost:8787/api/health
 > 그래서 실행기는 `Start-Process` 의 리디렉션을 쓴다. 이쪽은 바이트를 그대로 넣는다.
 > 대신 덮어쓰기라서, 시작 시각은 `server.mjs` 가 직접 찍는다.
 
+## Cloudflare Tunnel
+
+프록시(8787)를 `api.dodami-ai.com` 으로 내보낸다. 공인 IP나 포트포워딩이 필요 없고,
+노트북이 밖으로 나가는 연결이라 네트워크가 바뀌어도(교육장 ↔ 집) 자동으로 다시 붙는다.
+
+| 항목 | 값 |
+|---|---|
+| 터널 이름 | `eoumi-api` |
+| 설정 | `%USERPROFILE%\.cloudflared\config.yml` |
+| 자격증명 | `%USERPROFILE%\.cloudflared\<터널ID>.json` — **저장소 밖. 절대 커밋하지 않는다** |
+| 실행기 | `proxy/start-tunnel.ps1` |
+| 작업 이름 | `eoumi-tunnel` (로그온 시 시작) |
+| 로그 | `proxy/tunnel.log`, `proxy/tunnel.error.log` (cloudflared는 stderr로 쓴다) |
+
+### ⚠️ 같은 계정에 다른 터널이 있다
+
+이 Cloudflare 계정에는 `dementia-care`(새록이)와 `dodami-marcus` 터널이 따로 있고,
+새록이는 **리눅스 데스크탑이 운영하는 실서비스**다.
+
+- 이 노트북에서는 **`eoumi-api` 터널만** 실행한다
+- 다른 터널을 이 노트북에서 `run` 하지 않는다. 같은 터널을 두 기기가 켜면 트래픽이 갈라진다
+- `care.dodami-ai.com` DNS 레코드는 손대지 않는다
+
+### 등록
+
+관리자 PowerShell에서 한 번만.
+
+```powershell
+$tr = 'powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "C:\Users\nike1\Rag_guide_chatbot\proxy\start-tunnel.ps1"'
+schtasks /create /tn "eoumi-tunnel" /tr $tr /sc onlogon /rl LIMITED /f
+```
+
+`cloudflared service install` 은 쓰지 않는다. 토큰 없이 설치하면 LocalSystem 계정의
+설정 디렉터리에서 자격증명을 찾는데 그 디렉터리가 만들어지지 않아, 서비스가 떠 있어도
+터널에 붙지 못하고 502가 난다(2026-08-31 실제로 겪음). 프록시와 같은 방식으로 맞추면
+둘이 같은 시점에 떠서 그 사이에 502가 나는 구간도 없어진다.
+
+### 외부에서 확인
+
+```powershell
+curl.exe -s https://api.dodami-ai.com/api/health
+curl.exe -s -o NUL -w "tags=%{http_code}`n" https://api.dodami-ai.com/api/tags
+```
+
+`health` 가 `{"ok":true,...}` 이고 `tags=404` 여야 한다.
+`tags` 가 200이면 프록시를 거치지 않는다는 뜻이므로 즉시 터널을 내리고 설정을 다시 잡는다.
+둘 다 502면 프록시가 죽었거나 터널이 안 떠 있는 것이다.
+
 ## 노트북 전원 설정
 
 노트북이 잠들면 서비스가 끊긴다. 교류 전원일 때만 아래를 0으로 둔다. **배터리는 건드리지 않는다.**
