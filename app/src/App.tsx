@@ -13,6 +13,8 @@ import {
 } from "./rag";
 
 const BASE = import.meta.env.BASE_URL;
+/* 자동판정은 채점 루브릭용 기능이다. 어르신용 실사용판에서는 버튼을 감춘다. */
+const JUDGE_ON = import.meta.env.VITE_JUDGE !== "off";
 
 /* 브라우저 음성 입력(Web Speech API)은 표준 타입 정의에 없어 필요한 만큼만 선언한다. */
 type SpeechRecognitionLike = {
@@ -727,9 +729,11 @@ export default function App() {
                       <span>아쉬워요</span>
                     </button>
                   </div>
-                  <button className="btn-secondary judge-btn" onClick={runJudge} disabled={judging}>
-                    {judging ? "판정 중..." : "자동판정 실행"}
-                  </button>
+                  {JUDGE_ON && (
+                    <button className="btn-secondary judge-btn" onClick={runJudge} disabled={judging}>
+                      {judging ? "판정 중..." : "자동판정 실행"}
+                    </button>
+                  )}
                 </div>
               )}
 

@@ -2,7 +2,12 @@
 export interface Doc { id: string; text: string; url: string; section: string; vector: number[]; }
 export interface Hit { id: string; text: string; url: string; section: string; cosine: number; bm25: number; method: "vector" | "bm25" | "both"; rrf: number; }
 
-const OLLAMA = "http://localhost:11434";
+/* 배포 형태에 따라 아래 5개가 달라진다. 환경변수가 없으면 전부 제출용 기본값이다. */
+const OLLAMA = import.meta.env.VITE_OLLAMA_URL || "http://localhost:11434";
+const HEALTH_PATH = import.meta.env.VITE_HEALTH_PATH || "/api/tags"; // 실사용판은 프록시의 /api/health
+const CONTEXT_K = Number(import.meta.env.VITE_CONTEXT_K) || 6; // 프롬프트에 넣는 근거 개수. 노트북 CPU에서 대기 시간을 좌우한다
+const KEEP_ALIVE = import.meta.env.VITE_KEEP_ALIVE || ""; // 모델 상주 시간. 비면 필드를 안 보내 Ollama 기본값(5분)
+const keepAlive = KEEP_ALIVE ? { keep_alive: KEEP_ALIVE } : {};
 export const EMBED_MODEL = "embeddinggemma";
 export const CHAT_MODEL = "qwen3.5:2b";
 export const THRESHOLD = 0.33;
@@ -55,7 +60,7 @@ export function buildSearcher(docs: Doc[]) {
 }
 
 export function buildPrompt(query: string, hits: Hit[], weak: boolean): { system: string; user: string } {
-  const context = hits.slice(0, 6).map((h) => `[${h.id}] (${h.section}) ${h.text}\n출처: ${h.url}`).join("\n\n");
+  const context = hits.slice(0, CONTEXT_K).map((h) => `[${h.id}] (${h.section}) ${h.text}\n출처: ${h.url}`).join("\n\n");
   const system = [
     "당신은 어르신 디지털·스마트폰 안내 도우미입니다. 아래 '자료'에 근거해서만 한국어 존댓말로 답하세요. 반드시 한국어로만 쓰고 한자나 중국어, 불필요한 영어 단어를 쓰지 마세요.",
     "규칙:",
@@ -72,7 +77,7 @@ export function buildPrompt(query: string, hits: Hit[], weak: boolean): { system
 export async function* chatStream(system: string, user: string, signal?: AbortSignal): AsyncGenerator<string> {
   const r = await fetch(`${OLLAMA}/api/chat`, {
     method: "POST", headers: { "Content-Type": "application/json" }, signal,
-    body: JSON.stringify({ model: CHAT_MODEL, stream: true, think: false, options: { temperature: 0.3 }, messages: [{ role: "system", content: system }, { role: "user", content: user }] }),
+    body: JSON.stringify({ model: CHAT_MODEL, stream: true, think: false, options: { temperature: 0.3 }, ...keepAlive, messages: [{ role: "system", content: system }, { role: "user", content: user }] }),
   });
   if (!r.ok || !r.body) throw new Error(`채팅 실패 ${r.status}`);
   const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = "";
@@ -90,9 +95,10 @@ export async function* chatStream(system: string, user: string, signal?: AbortSi
 
 export async function checkOllama(): Promise<{ ok: boolean; hasChat: boolean; hasEmbed: boolean }> {
   try {
-    const r = await fetch(`${OLLAMA}/api/tags`);
+    const r = await fetch(`${OLLAMA}${HEALTH_PATH}`);
     if (!r.ok) return { ok: false, hasChat: false, hasEmbed: false };
     const j = await r.json();
+    if (typeof j.ok === "boolean") return { ok: j.ok, hasChat: !!j.hasChat, hasEmbed: !!j.hasEmbed };
     const names: string[] = (j.models || []).map((m: { name: string }) => m.name);
     return { ok: true, hasChat: names.some((n) => n.startsWith(CHAT_MODEL)), hasEmbed: names.some((n) => n.startsWith(EMBED_MODEL)) };
   } catch { return { ok: false, hasChat: false, hasEmbed: false }; }
@@ -101,7 +107,7 @@ export async function checkOllama(): Promise<{ ok: boolean; hasChat: boolean; ha
 export interface Judgement { grounded: boolean; noHalluc: boolean; cited: boolean; refusal: boolean; score: number; comment: string; }
 
 export async function judge(query: string, answer: string, hits: Hit[]): Promise<Judgement> {
-  const context = hits.slice(0, 6).map((h) => `[${h.id}] ${h.text}`).join("\n");
+  const context = hits.slice(0, CONTEXT_K).map((h) => `[${h.id}] ${h.text}`).join("\n");
   const sys = "당신은 RAG 답변을 평가하는 채점자입니다. 자료·질문·답변을 읽고 아래 6개 기준을 JSON으로만 출력하세요. 다른 말은 하지 마세요.";
   const rubric = [
     "기준(true/false):",

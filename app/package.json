@@ -8,8 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "build:submit": "node scripts/build.mjs submit",
+    "build:live": "node scripts/build.mjs live"
   },
   "dependencies": {
     "react": "^19.2.8",

@@ -10,3 +10,8 @@ npm-debug.log*
 
 # 기기별 도구 설정 (세션 경로 등 개인 정보 포함)
 .claude/
+
+# 빌드 환경변수 (도메인 주소 등 기기별 값)
+.env
+.env.*
+!.env.example
