@@ -856,7 +856,7 @@ export default function App() {
 
         <footer className="site-footer">
           이음이 — 어르신 디지털 안내 챗봇. 자료: 공개 문서 {status.docs}건 · 답변 {CHAT_MODEL}{" "}
-          (Ollama, 로컬) · 임베딩 {EMBED_MODEL}
+          ({HOSTED ? "Ollama, 운영자 컴퓨터" : "Ollama, 로컬"}) · 임베딩 {EMBED_MODEL}
         </footer>
       </div>
 
