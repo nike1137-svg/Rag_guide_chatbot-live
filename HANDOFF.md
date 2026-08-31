@@ -82,6 +82,11 @@ temperature 0.3 채택, top-k 10 유지, THRESHOLD 0.33 유지, BM25_MIN 2.0→6
 
 없음. 제출 준비 완료 상태다.
 
+> 여기까지가 과제 제출 시점(2026-08-30)의 기록이다. 그 뒤에 어르신이 설치 없이 쓸 수 있는
+> **실사용판을 별도 저장소·별도 도메인에 배포**했다. 문서 끝의
+> [실사용판 배포](#실사용판-배포-2026-08-31) 절을 참고할 것.
+> 제출물 자체는 그 작업에서 한 글자도 바뀌지 않았다.
+
 - GitHub 저장소: https://github.com/nike1137-svg/Rag_guide_chatbot (퍼블릭)
 - 배포 URL: https://nike1137-svg.github.io/Rag_guide_chatbot/ (게시 확인)
 - 제출 폼: https://forms.gle/1BMsytrwzN5uscNA6
@@ -109,3 +114,203 @@ temperature 0.3 채택, top-k 10 유지, THRESHOLD 0.33 유지, BM25_MIN 2.0→6
   다음 실험에서 조용히 어긋난다. 다음에는 `node eval.mjs --topk=5 --out=...` 형태의 인자 방식으로 통합할 것
 - **히스토리를 재작성했으면 문서의 커밋 해시 참조를 반드시 다시 확인할 것.**
   공동저자 표기를 지우며 `filter-branch`를 돌린 뒤 HANDOFF의 해시가 도달 불가 상태로 남아 있었다
+
+---
+
+# 실사용판 배포 (2026-08-31)
+
+과제 제출물은 그대로 두고, 어르신이 아무것도 설치하지 않고 쓸 수 있는 판을
+별도 도메인에 배포했다. 이 절부터는 그 작업 기록이다.
+
+## 저장소가 둘이다
+
+| | 저장소 | 배포 주소 | 상태 |
+|---|---|---|---|
+| 제출용 | `nike1137-svg/Rag_guide_chatbot` | https://nike1137-svg.github.io/Rag_guide_chatbot/ | **동결.** main `df10b1d`, gh-pages `c3b5463` |
+| 실사용판 | `nike1137-svg/Rag_guide_chatbot-live` | https://chat.dodami-ai.com | 작업 중 |
+
+제출을 이미 마쳤고 "제출물은 어떤 경우에도 수정 금지"가 제1제약이라, 같은 저장소의
+브랜치가 아니라 **저장소 자체를 나눴다.** 브랜치로 하면 `git push` 오타 한 번이나
+`npm run deploy` 한 번으로 제출물에 닿는다. 저장소가 다르면 그 경로가 물리적으로 없다.
+
+노트북의 작업 폴더 `C:\Users\nike1\Rag_guide_chatbot` 은 **live 저장소만** 원격으로
+가지고 있다. 소스를 꺼낸 직후 제출 저장소 remote 를 지웠고, `gh-pages` 브랜치는
+아예 받아오지 않았다. 회귀 검증이 필요하면 임시 폴더에 따로 clone 해서 쓰고 지운다.
+
+기준선은 작업 전후로 매번 확인했고 끝까지 변하지 않았다.
+게시된 번들 해시 `index-Bewr_LhS.js` 는 제출 저장소를 새로 clone 해 빌드한 결과와 같다.
+
+## 구성
+
+```
+어르신 스마트폰 (설치 없음)
+   ↓ HTTPS
+chat.dodami-ai.com   Cloudflare Pages — 화면 + 검색(코사인·BM25·RRF)
+   ↓ fetch
+api.dodami-ai.com    Cloudflare Tunnel (터널 이름 eoumi-api)
+   ↓
+윈도우 노트북 TAKEDA : 보호 프록시 8787 → Ollama 11434
+```
+
+검색은 브라우저에서 끝내고, 임베딩과 생성만 노트북이 맡는다. 원래 설계 그대로다.
+
+## 한 소스에서 두 벌
+
+`app/scripts/build.mjs` 가 가른다. 먼저 `VITE_*` 를 전부 지우고 필요한 값만 다시 넣는다.
+PowerShell 의 `$env:` 가 창에 남아 두 빌드가 섞이는 사고를 막기 위한 것이다.
+
+```
+npm run build:submit   # 환경변수 없이 빌드. 제출용 동작 그대로
+npm run build:live     # app/.env.live 를 읽는다 (커밋 대상 아님)
+```
+
+| 환경변수 | 기본값(제출용) | 실사용판 |
+|---|---|---|
+| `VITE_OLLAMA_URL` | `http://localhost:11434` | `https://api.dodami-ai.com` |
+| `VITE_BASE` | `/Rag_guide_chatbot/` | `/` |
+| `VITE_HEALTH_PATH` | `/api/tags` | `/api/health` |
+| `VITE_JUDGE` | 켜짐 | `off` |
+| `VITE_CONTEXT_K` | `6` | `3` |
+| `VITE_KEEP_ALIVE` | 없음(Ollama 기본 5분) | `30m` |
+| `VITE_HOSTED` | 없음 | `1` (문구 분기) |
+
+검색 파라미터(THRESHOLD 0.33 / REFUSE 0.30 / BM25_MIN 6.0 / K_VEC 10 / K_BM25 5 / RRF_K 60)는
+양쪽이 같다. 화면 출처 칩 개수도 6으로 같다 — 출처 칩은 검색이 무엇을 왜 골랐는지 보여주는
+장치이고, 모델이 실제로 근거로 삼은 것은 본문의 `[SD-000]` 인용으로 따로 드러난다.
+
+`app/package.json` 의 `deploy: gh-pages -d dist` 는 제거했다. live 저장소는 Cloudflare Pages 로
+배포하고, 제출본은 이미 동결됐다.
+
+## 보호 프록시 (`proxy/server.mjs`)
+
+Ollama API 에는 인증이 없다. 그대로 터널에 노출하면 주소를 아는 누구나 모델을 지우거나
+받을 수 있다. 그래서 프록시만 밖으로 내보낸다. 외부 패키지 없이 Node 내장 모듈만 쓰고
+`127.0.0.1` 에만 바인딩한다.
+
+| 항목 | 값 |
+|---|---|
+| 포트 | 8787 |
+| 통과 경로 | `POST /api/chat`, `POST /api/embed`, `GET /api/health` — 이 셋뿐 |
+| 그 밖의 경로 | 404 (`/api/tags` `/api/pull` `/api/delete` 가 여기서 막힌다) |
+| 모델 | `qwen3.5:2b` / `embeddinggemma` 만 통과. 그 외 400 |
+| 본문 상한 | 16 KB, 초과 시 413 |
+| 레이트리밋 | IP당 분당 30요청 |
+| 허용 오리진 | `proxy/proxy.env` 의 `ALLOWED_ORIGINS` (커밋 대상 아님) |
+| 로그 | `proxy/proxy.log`, `proxy/proxy.error.log` |
+
+`GET /api/health` 는 프록시가 내부적으로 Ollama `/api/tags` 를 확인해 `{ok, hasChat, hasEmbed}`
+만 돌려준다. 모델 목록은 내보내지 않는다. 화면의 연결 상태 칩이 이걸 쓴다.
+
+레이트리밋은 `CF-Connecting-IP` 를 본다. cloudflared 가 노트북 안에서 프록시에 붙기 때문에
+`remoteAddress` 를 쓰면 모든 외부 사용자가 `127.0.0.1` 하나로 보여 "IP당 30회"가
+"전체 30회"가 된다. 단 그 헤더는 **루프백에서 들어온 연결일 때만** 믿는다.
+
+한도 30은 정상 사용 제한이 아니라 자동화 남용 차단용이다. 질문 1건이
+embed 1 + chat 1 이고, Ollama 가 요청을 순차 처리하며 한 건에 1분 안팎이 걸려
+물리적으로 그만큼 받지도 못한다.
+
+## 터널
+
+| 항목 | 값 |
+|---|---|
+| 터널 이름 | `eoumi-api` |
+| 설정 | `%USERPROFILE%\.cloudflared\config.yml` |
+| 자격증명 | `%USERPROFILE%\.cloudflared\<터널ID>.json` — **저장소 밖. 커밋하지 않는다** |
+| ingress | `api.dodami-ai.com` → `http://localhost:8787` 하나뿐 |
+
+**같은 Cloudflare 계정에 `dementia-care`(새록이)와 `dodami-marcus` 터널이 따로 있다.**
+새록이는 리눅스 데스크탑이 운영하는 실서비스다. 이 노트북에서는 `eoumi-api` 만 실행한다.
+같은 터널을 두 기기가 켜면 트래픽이 갈라진다. `care.` DNS 레코드는 손대지 않았다
+(작업 전후 모두 302로 동일함을 확인했다).
+
+## 상시 실행 — 작업 스케줄러 두 개
+
+프록시와 터널을 **같은 방식**으로 등록했다. 둘이 같은 시점에 떠야 그 사이에 502가
+나는 구간이 안 생긴다. 등록에는 관리자 권한이 필요하다.
+
+```powershell
+$tr = 'powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "C:\Users\nike1\Rag_guide_chatbot\proxy\start-proxy.ps1"'
+schtasks /create /tn "eoumi-proxy" /tr $tr /sc onlogon /rl LIMITED /f
+
+$tr = 'powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "C:\Users\nike1\Rag_guide_chatbot\proxy\start-tunnel.ps1"'
+schtasks /create /tn "eoumi-tunnel" /tr $tr /sc onlogon /rl LIMITED /f
+```
+
+`cloudflared service install` 은 쓰지 않았다. 토큰 없이 설치하면 LocalSystem 계정의 설정
+디렉터리에서 자격증명을 찾는데 그 디렉터리가 만들어지지 않아, 서비스가 떠 있어도 터널에
+붙지 못하고 502가 났다. 서비스 인자에 `tunnel run` 도 config 경로도 들어가지 않은 상태였다.
+
+## 노트북 전원 설정
+
+교류 전원일 때만 아래를 0으로 두었다. **배터리 설정은 건드리지 않았다.**
+
+| 항목 | 값 |
+|---|---|
+| 절전(대기) / 화면 끄기 / 최대 절전 | 0 = 안 함 |
+| 덮개 닫기 | 아무것도 안 함 |
+
+윈도우 11은 Modern Standby라 `powercfg /change` 만으로는 덮개 닫기를 못 막는다.
+덮개 설정은 기본적으로 숨겨져 있어 먼저 드러내야 했다.
+
+```powershell
+$LID = '5ca83367-6e45-459f-a27b-476b1d01c936'
+powercfg -attributes SUB_BUTTONS $LID -ATTRIB_HIDE
+powercfg /setacvalueindex SCHEME_CURRENT SUB_BUTTONS $LID 0
+powercfg /setactive SCHEME_CURRENT
+```
+
+## 응답 시간 실측 (i5-10210U 4코어, GPU 가속 없음)
+
+첫 글자까지 걸리는 시간은 **프롬프트 길이에 거의 정비례**한다. 모델이 느린 게 아니라
+CPU가 긴 프롬프트를 읽는 속도가 느린 것이다.
+
+| 근거 개수 | 프롬프트 | 첫 글자까지 | 전체 |
+|---|---|---|---|
+| 0건 | 77자 | 2.6초 | 19.5초 |
+| **3건 (실사용판)** | 약 750자 | **15~25초** | 55~87초 |
+| 6건 (제출용) | 약 1400자 | 38~48초 | 53~97초 |
+
+- **같은 질문을 반복하면 Ollama 프롬프트 캐시로 0.4초까지 떨어진다. 측정할 때 속지 말 것.**
+  서로 다른 질문·다른 근거 조합으로 재야 한다.
+- **터널 자체의 부담은 사실상 0이다.** 같은 프롬프트를 로컬 직접과 터널 경유로 번갈아
+  재보니 차이가 캐시 적중 여부에서만 났다.
+- Cloudflare 무료 구간은 첫 응답까지 100초를 넘기면 524로 끊는다. 혼자 쓸 때는 여유가
+  있지만, Ollama가 순차 처리라 **두 사람이 겹치면 뒷사람이 100초를 넘길 수 있다.**
+  대책(프록시가 응답 헤더를 먼저 흘려보내기)은 아직 넣지 않았다. 실제로 끊기는 것을
+  보고 넣기로 했다. 필요하면 30줄이면 된다.
+
+## 배포
+
+Cloudflare Pages 프로젝트 `eoumi`, wrangler 직접 업로드.
+
+```
+cd app && npm run build:live
+cd .. && npx wrangler pages deploy app/dist --project-name=eoumi --branch=main
+```
+
+커스텀 도메인 `chat.dodami-ai.com` 은 wrangler에 명령이 없어 대시보드에서 붙였다
+(Workers 및 Pages → eoumi → 사용자 설정 도메인). 활성화까지 1~3분 걸렸다.
+`.wrangler/` 는 계정 ID가 담기므로 커밋하지 않는다.
+
+## 살아 있는지 확인하는 법
+
+```powershell
+curl.exe -s http://localhost:8787/api/health          # 프록시
+curl.exe -s https://api.dodami-ai.com/api/health      # 터널까지
+curl.exe -s -o NUL -w "%{http_code}`n" https://chat.dodami-ai.com/   # 화면
+```
+
+`health` 가 `{"ok":true,...}` 이고 화면이 200이면 정상이다.
+둘 다 502면 프록시가 죽었거나 터널이 안 떠 있는 것이다. `proxy/*.log` 를 본다.
+
+## 다시 손댈 때 주의할 것
+
+- **제출 저장소는 어떤 경우에도 건드리지 않는다.** 작업 폴더에 그 remote 가 없는 것이
+  안전장치다. 실수로 다시 추가하지 말 것.
+- 프록시를 고쳤으면 **curl 검증만으로 충분하지 않다.** curl은 CORS 프리플라이트를
+  보내지 않아, 검증을 전부 통과하면서 브라우저에서만 죽는 구멍이 생긴다.
+  반드시 실제 브라우저로 `OPTIONS` 가 204를 받는지 확인한다.
+- 허용 오리진을 바꿨으면 프록시를 다시 띄워야 반영된다
+  (`schtasks /end` → `schtasks /run /tn "eoumi-proxy"`).
+- PowerShell 에서 `curl` 은 `Invoke-WebRequest` 별칭이다. 반드시 `curl.exe`.
+  본문에 한글을 넣으면 인용이 깨지므로 파일에 적어 `--data-binary "@파일"` 로 보낸다.
