@@ -501,10 +501,22 @@ export default function App() {
         <section className="chat-panel" id="chat">
           <div className="panel-head">
             <div className="panel-head-text">
-              <h2 className="panel-title">이음이 안내 챗봇</h2>
+              {/* 이름을 라벨로만 두면 브랜드 장식으로 넘어간다.
+                  주어로 등장해야 "이 이름이 지금 나에게 답하는 상대"라는 연결이 생긴다.
+                  상대가 사람인지 아닌지에 따라 믿는 방식이 달라지므로 정체도 여기서 밝힌다. */}
+              <h2 className="panel-title">
+                {HOSTED ? (
+                  <>
+                    <span className="panel-name">이음이</span>는 안내 챗봇(인공지능)이에요
+                  </>
+                ) : (
+                  "이음이 안내 챗봇"
+                )}
+              </h2>
               <p className="panel-sub">
-                자료 {status.docs}건
-                {!HOSTED && ` · 답변 ${CHAT_MODEL} · 임베딩 ${EMBED_MODEL}`}
+                {HOSTED
+                  ? `공개된 자료 ${status.docs}건에 근거해 쉬운 말로 답해 드립니다.`
+                  : `자료 ${status.docs}건 · 답변 ${CHAT_MODEL} · 임베딩 ${EMBED_MODEL}`}
               </p>
             </div>
             <span

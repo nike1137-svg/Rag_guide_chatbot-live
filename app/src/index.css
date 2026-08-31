@@ -219,6 +219,12 @@ button {
   font-weight: 700;
 }
 
+/* 실사용판 제목 안의 이름. 문장 속에서 주어로 서도록 색으로 세운다.
+   제출용 제목에는 이 요소가 없다. */
+.panel-name {
+  color: var(--brand);
+}
+
 .panel-sub {
   margin: var(--sp-1) 0 0;
   font-size: var(--fs-xs);
